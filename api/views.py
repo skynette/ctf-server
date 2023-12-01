@@ -11,22 +11,40 @@ class SubmitFlagView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         # Define the dictionary of flags and their corresponding points
         flag_points = {
-            'easy_flag_value': 10,
-            'medium_flag_value': 20,
-            'hard_flag_value': 30,
-            'very_easy_flag_value': 5,
-            'medium_hard_flag_value': 25,
-            'super_hard_flag_value': 40,
-            'another_easy_flag_value': 15,
-            'tricky_flag_value': 35,
-            'complex_flag_value': 50,
-            'another_hard_flag_value': 30,
-            'ultra_hard_flag_value': 45,
-            'hidden_flag_value': 10,
-            'top_secret_flag_value': 20,
-            'secret_code_flag_value': 25,
-            'encrypted_flag_value': 30,
-            'encrypted_message_flag_value': 40,
+            'very_easy_fl4g': 5,
+            'a_very_easy_fl4g': 5,
+            'hidden_fl4g': 10,
+            'easy_fl4g': 10,
+            'another_easy_fl4g': 15,
+            'whisper_fl4g': 15,
+            'top_secret_fl4g': 20,
+            'medium_fl4g': 20,
+            'moonlight_fl4g': 20,
+            'secret_code_fl4g': 25,
+            'medium_hard_fl4g': 25,
+            'cipher_fl4g': 25,
+            'thunderstorm_fl4g': 25,
+            'hard_fl4g': 30,
+            'another_hard_fl4g': 30,
+            'encrypted_fl4g': 30,
+            'sphinx_fl4g': 30,
+            'phantom_fl4g': 30,
+            'tricky_fl4g': 35,
+            'shadow_fl4g': 35,
+            'firestorm_fl4g': 35,
+            'ninja_fl4g': 35,
+            'super_hard_fl4g': 40,
+            'encrypted_message_fl4g': 40,
+            'mind_bender_fl4g': 40,
+            'nebula_fl4g': 40,
+            'jigsaw_fl4g': 40,
+            'quantum_fl4g': 45,
+            'ultra_hard_fl4g': 45,
+            'enigma_fl4g': 45,
+            'avalanche_fl4g': 45,
+            'galaxy_fl4g': 50,
+            'complex_fl4g': 50,
+            'xXx_unbreakable_fl4g_xXx': 50
         }
 
         # Get the submitted flag and username from the request data
@@ -34,6 +52,9 @@ class SubmitFlagView(generics.CreateAPIView):
         username = request.data.get('username', None)
 
         if submitted_flag and username:
+            if not flag_points.get(submitted_flag, None):
+                return Response({'error': 'Flag not valid'}, status=400)
+
             # Get or create the user based on the provided username
             user, created = LeaderboardUser.objects.get_or_create(username=username)
 
@@ -42,7 +63,8 @@ class SubmitFlagView(generics.CreateAPIView):
                 return Response({'error': 'Flag already submitted for this user'}, status=400)
 
             # Update the user's points based on the flag
-            user.points += flag_points.get(submitted_flag, 0)
+            score = flag_points.get(submitted_flag, 0)
+            user.points += score
 
             # Create or get the Flag object for the submitted flag
             flag_obj, _ = Flag.objects.get_or_create(value=submitted_flag)
@@ -53,7 +75,7 @@ class SubmitFlagView(generics.CreateAPIView):
 
             # Serialize the updated user and return the response
             serializer = LeaderboardUserSerializer(user)
-            return Response(serializer.data)
+            return Response({'score': score})
         else:
             return Response({'error': 'Flag or username not provided'}, status=400)
 
