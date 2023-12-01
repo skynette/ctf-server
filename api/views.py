@@ -3,6 +3,7 @@ from rest_framework import generics
 from rest_framework.response import Response
 from .models import LeaderboardUser, Flag
 from .serializers import LeaderboardUserSerializer
+from django.utils.text import slugify
 
 class SubmitFlagView(generics.CreateAPIView):
     queryset = LeaderboardUser.objects.all()
@@ -52,6 +53,7 @@ class SubmitFlagView(generics.CreateAPIView):
         username = request.data.get('username', None)
 
         if submitted_flag and username:
+            submitted_flag = slugify(submitted_flag)
             if not flag_points.get(submitted_flag, None):
                 return Response({'error': 'Flag not valid'}, status=400)
 
