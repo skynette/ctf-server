@@ -61,8 +61,10 @@ class SubmitFlagView(generics.CreateAPIView):
             user, created = LeaderboardUser.objects.get_or_create(username=username)
             
             # Get the count of other users who submitted the same flag
-            other_users_count = Flag.objects.exclude(users__username=username).filter(value=submitted_flag).count()
-            
+            flag = Flag.objects.filter(value=submitted_flag).first()
+            if flag:
+                other_users_count = LeaderboardUser.objects.filter(submitted_flags=flag).count()
+            else: other_users_count = 0
             # Calculate the multiplier based on the number of other users
             multiplier = 1 + other_users_count
 

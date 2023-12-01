@@ -76,7 +76,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'zcore.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 if DEBUG:
@@ -98,7 +97,6 @@ else:
             'PORT': os.environ.get('DB_PORT'),
         }
     }
-
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
