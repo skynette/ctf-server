@@ -79,7 +79,6 @@ WSGI_APPLICATION = 'zcore.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-print(DEBUG)
 if DEBUG:
     DATABASES = {
         'default': {
@@ -144,5 +143,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'https://yourfrontenddomain.com',
+    'https://gdg-benin.vercel.app',
 ]
