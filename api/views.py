@@ -59,14 +59,24 @@ class SubmitFlagView(generics.CreateAPIView):
 
             # Get or create the user based on the provided username
             user, created = LeaderboardUser.objects.get_or_create(username=username)
+            
+            # Get the count of other users who submitted the same flag
+            other_users_count = Flag.objects.exclude(users__username=username).filter(value=submitted_flag).count()
+            
+            # Calculate the multiplier based on the number of other users
+            multiplier = 1 + other_users_count
 
             # Check if the flag has already been submitted by the user
             if user.submitted_flags.filter(value=submitted_flag).exists():
                 return Response({'error': 'Flag already submitted for this user'}, status=400)
-
-            # Update the user's points based on the flag
-            score = flag_points.get(submitted_flag, 0)
+            
+             # Reduce the score by the calculated multiplier
+            score = flag_points[submitted_flag] // multiplier
             user.points += score
+
+            # # Update the user's points based on the flag
+            # score = flag_points.get(submitted_flag, 0)
+            # user.points += score
 
             # Create or get the Flag object for the submitted flag
             flag_obj, _ = Flag.objects.get_or_create(value=submitted_flag)
