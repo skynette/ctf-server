@@ -45,7 +45,7 @@ class SubmitFlagView(generics.CreateAPIView):
             'avalanche_fl4g': 45,
             'galaxy_fl4g': 50,
             'complex_fl4g': 50,
-            'xXx_unbreakable_fl4g_xXx': 50
+            'xXx_unbreakable_fl4g_xXx': 80
         }
 
         # Get the submitted flag and username from the request data
