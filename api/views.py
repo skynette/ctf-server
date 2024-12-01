@@ -113,6 +113,8 @@ class GameControlView(APIView):
         action = request.data.get('action', None)
         password = request.data.get('password', None)
         config = Config.get_config()
+        print("config", config)
+        print("action and password", action, password)
 
         if action == 'start' and password == config.password:
             if config.game_started:

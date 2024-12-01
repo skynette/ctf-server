@@ -89,9 +89,9 @@ if DEBUG:
 else:
     DATABASES = {
         'default': {
-            'ENGINE': os.environ.get('DB_ENGINE'),
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': 'railway', 
+            'USER': 'postgres', 
             'PASSWORD': os.environ.get('DB_PASSWORD'),
             'HOST': os.environ.get('DB_HOST'),
             'PORT': os.environ.get('DB_PORT'),
