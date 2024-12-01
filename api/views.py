@@ -1,15 +1,22 @@
 # api/views.py
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.response import Response
-from .models import LeaderboardUser, Flag
+from rest_framework.views import APIView
+from .models import LeaderboardUser, Flag, Config
 from .serializers import LeaderboardUserSerializer
 from django.utils.text import slugify
+from django.utils import timezone
 
 class SubmitFlagView(generics.CreateAPIView):
     queryset = LeaderboardUser.objects.all()
     serializer_class = LeaderboardUserSerializer
 
     def create(self, request, *args, **kwargs):
+        # Check if game has started
+        config = Config.get_config()
+        if not config.game_started:
+            return Response({'error': 'Game has not started yet'}, status=403)
+        
         # Define the dictionary of flags and their corresponding points
         flag_points = {
             'very_easy_fl4g': 5,
@@ -76,10 +83,6 @@ class SubmitFlagView(generics.CreateAPIView):
             score = flag_points[submitted_flag] // multiplier
             user.points += score
 
-            # # Update the user's points based on the flag
-            # score = flag_points.get(submitted_flag, 0)
-            # user.points += score
-
             # Create or get the Flag object for the submitted flag
             flag_obj, _ = Flag.objects.get_or_create(value=submitted_flag)
             # Add the submitted flag to the user's submitted_flags set
@@ -98,3 +101,62 @@ class SubmitFlagView(generics.CreateAPIView):
 class LeaderboardView(generics.ListAPIView):
     queryset = LeaderboardUser.objects.all()
     serializer_class = LeaderboardUserSerializer
+
+
+class GameControlView(APIView):
+
+    def post(self, request):
+        """
+        Start or end the game based on the action parameter.
+        Expects: {"action": "start"} or {"action": "end"}
+        """
+        action = request.data.get('action', None)
+        password = request.data.get('password', None)
+        config = Config.get_config()
+
+        if action == 'start' and password == config.password:
+            if config.game_started:
+                return Response({
+                    'error': 'Game has already started'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            config.game_started = True
+            config.start_time = timezone.now()
+            config.end_time = None
+            config.save()
+            
+            return Response({
+                'message': 'Game started successfully',
+                'start_time': config.start_time
+            })
+
+        elif action == 'end' and password == config.password:
+            if not config.game_started:
+                return Response({
+                    'error': 'Game has not been started yet'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            config.game_started = False
+            config.end_time = timezone.now()
+            config.save()
+            
+            return Response({
+                'message': 'Game ended successfully',
+                'end_time': config.end_time,
+                'duration': config.end_time - config.start_time
+            })
+
+        return Response({
+            'error': 'Invalid action or password. Use "start" or "end".'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def get(self, request):
+        """Return the current game state"""
+        config = Config.get_config()
+        return Response({
+            'game_started': config.game_started,
+            'start_time': config.start_time,
+            'end_time': config.end_time,
+            'duration': config.end_time - config.start_time if (config.end_time and config.start_time) else None
+        })

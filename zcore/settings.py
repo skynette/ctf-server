@@ -75,7 +75,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'zcore.wsgi.application'
-
+print("debug:", DEBUG)
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 if DEBUG:
