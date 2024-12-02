@@ -2,10 +2,49 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import LeaderboardUser, Flag, Config
+from .models import LeaderboardUser, Flag, Config, UserSession
 from .serializers import LeaderboardUserSerializer
 from django.utils.text import slugify
 from django.utils import timezone
+
+
+class RegisterUserView(APIView):
+    def post(self, request):
+        username = request.data.get('username')
+        
+        if not username:
+            return Response(
+                {'error': 'Username is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if game has started
+        config = Config.get_config()
+        if not config.game_started:
+            return Response(
+                {'error': 'Game has not started yet'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Try to get existing session
+            session = UserSession.objects.get(username=username)
+            return Response(
+                {'error': 'Username already exists'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except UserSession.DoesNotExist:
+            # Create new session
+            session = UserSession.create_session(username)
+            
+            # Also create LeaderboardUser
+            LeaderboardUser.objects.create(username=username)
+            
+            return Response({
+                'username': session.username,
+                'token': session.token
+            })
+
 
 class SubmitFlagView(generics.CreateAPIView):
     queryset = LeaderboardUser.objects.all()
@@ -56,46 +95,68 @@ class SubmitFlagView(generics.CreateAPIView):
         }
 
         # Get the submitted flag and username from the request data
-        submitted_flag = request.data.get('flag', None)
-        username = request.data.get('username', None)
+        token = request.data.get('token')
+        submitted_flag = request.data.get('flag')
 
-        if submitted_flag and username:
-            submitted_flag = slugify(submitted_flag)
-            if not flag_points.get(submitted_flag, None):
-                return Response({'error': 'Flag not valid'}, status=400)
+        if not token or not submitted_flag:
+            return Response(
+                {'error': 'Token and flag are required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-            # Get or create the user based on the provided username
-            user, created = LeaderboardUser.objects.get_or_create(username=username)
+        try:
+            # Get user session by token
+            session = UserSession.objects.get(token=token)
             
-            # Get the count of other users who submitted the same flag
-            flag = Flag.objects.filter(value=submitted_flag).first()
-            if flag:
-                other_users_count = LeaderboardUser.objects.filter(submitted_flags=flag).count()
-            else: other_users_count = 0
-            # Calculate the multiplier based on the number of other users
-            multiplier = 1 + other_users_count
+            # Get the corresponding leaderboard user
+            user = LeaderboardUser.objects.get(username=session.username)
 
-            # Check if the flag has already been submitted by the user
-            if user.submitted_flags.filter(value=submitted_flag).exists():
-                return Response({'error': 'Flag already submitted for this user'}, status=400)
-            
-             # Reduce the score by the calculated multiplier
-            score = flag_points[submitted_flag] // multiplier
-            user.points += score
+            if submitted_flag:
+                submitted_flag = slugify(submitted_flag)
+                if not flag_points.get(submitted_flag, None):
+                    return Response({'error': 'Flag not valid'}, status=400)
+                
+                # Get the count of other users who submitted the same flag
+                flag = Flag.objects.filter(value=submitted_flag).first()
+                if flag:
+                    other_users_count = LeaderboardUser.objects.filter(submitted_flags=flag).count()
+                else: other_users_count = 0
+                
+                # Calculate the multiplier based on the number of other users
+                multiplier = 1 + other_users_count
 
-            # Create or get the Flag object for the submitted flag
-            flag_obj, _ = Flag.objects.get_or_create(value=submitted_flag)
-            # Add the submitted flag to the user's submitted_flags set
-            user.submitted_flags.add(flag_obj)
+                # Check if the flag has already been submitted by the user
+                if user.submitted_flags.filter(value=submitted_flag).exists():
+                    return Response({'error': 'Flag already submitted for this user'}, status=400)
+                
+                # Reduce the score by the calculated multiplier
+                score = flag_points[submitted_flag] // multiplier
+                user.points += score
 
-            user.save()
+                # Create or get the Flag object for the submitted flag
+                flag_obj, _ = Flag.objects.get_or_create(value=submitted_flag)
+                
+                # Add the submitted flag to the user's submitted_flags set
+                user.submitted_flags.add(flag_obj)
 
-            # Serialize the updated user and return the response
-            serializer = LeaderboardUserSerializer(user)
-            return Response({'score': score})
-        else:
-            return Response({'error': 'Flag or username not provided'}, status=400)
+                user.save()
 
+                # Serialize the updated user and return the response
+                serializer = LeaderboardUserSerializer(user)
+                return Response({'score': score})
+            else:
+                return Response({'error': 'Flag or username not provided'}, status=400)
+
+        except UserSession.DoesNotExist:
+            return Response(
+                {'error': 'Invalid token'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        except LeaderboardUser.DoesNotExist:
+            return Response(
+                {'error': 'User not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class LeaderboardView(generics.ListAPIView):
@@ -104,23 +165,20 @@ class LeaderboardView(generics.ListAPIView):
 
 
 class GameControlView(APIView):
-
     def post(self, request):
         """
         Start or end the game based on the action parameter.
-        Expects: {"action": "start"} or {"action": "end"}
+        Starting the game will reset all user data.
         """
         action = request.data.get('action', None)
         password = request.data.get('password', None)
         config = Config.get_config()
-        print("config", config)
-        print("action and password", action, password)
 
         if action == 'start' and password == config.password:
-            if config.game_started:
-                return Response({
-                    'error': 'Game has already started'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            # Reset all data before starting new game
+            LeaderboardUser.objects.all().delete()
+            UserSession.objects.all().delete()
+            Flag.objects.all().delete()
             
             config.game_started = True
             config.start_time = timezone.now()
@@ -128,7 +186,7 @@ class GameControlView(APIView):
             config.save()
             
             return Response({
-                'message': 'Game started successfully',
+                'message': 'Game started successfully and data reset',
                 'start_time': config.start_time
             })
 
@@ -151,7 +209,6 @@ class GameControlView(APIView):
         return Response({
             'error': 'Invalid action or password. Use "start" or "end".'
         }, status=status.HTTP_400_BAD_REQUEST)
-
 
     def get(self, request):
         """Return the current game state"""

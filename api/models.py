@@ -1,10 +1,36 @@
 # api/models.py
 from django.db import models
+import secrets
+import string
+
+class UserSession(models.Model):
+    username = models.CharField(max_length=255, unique=True)
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @classmethod
+    def generate_token(cls):
+        # Generate a random 32-character token
+        alphabet = string.ascii_letters + string.digits
+        return ''.join(secrets.choice(alphabet) for _ in range(32))
+
+    @classmethod
+    def create_session(cls, username):
+        token = cls.generate_token()
+        return cls.objects.create(username=username, token=token)
+    
+    def __str__(self):
+        return f"Session: {self.username} (Created: {self.created_at.strftime('%Y-%m-%d %H:%M:%S')})"
+
 
 class LeaderboardUser(models.Model):
     username = models.CharField(max_length=255)
     points = models.IntegerField(default=0)
     submitted_flags = models.ManyToManyField('Flag', blank=True)
+    
+    def __str__(self):
+        return f"{self.username} - Points: {self.points}"
+
 
 class Flag(models.Model):
     value = models.CharField(max_length=255, unique=True)
@@ -12,7 +38,6 @@ class Flag(models.Model):
 
     def __str__(self):
         return self.value
-
 
 
 class Config(models.Model):
