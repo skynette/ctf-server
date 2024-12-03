@@ -112,7 +112,11 @@ class SubmitFlagView(generics.CreateAPIView):
             user = LeaderboardUser.objects.get(username=session.username)
 
             if submitted_flag:
-                submitted_flag = slugify(submitted_flag)
+                # submitted_flag = slugify(submitted_flag)
+                attempt = flag_points.get(submitted_flag)
+                print("submitted flag", submitted_flag, "attmept", attempt)
+                print(submitted_flag == attempt)
+                
                 if not flag_points.get(submitted_flag, None):
                     return Response({'error': 'Flag not valid'}, status=400)
                 
